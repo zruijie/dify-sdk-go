@@ -164,24 +164,24 @@ const (
 	FeedbackDislike = "dislike"
 )
 
-type Api struct {
+type API struct {
 	c         *Client
 	apiSecret string
 }
 
-func (api *Api) WithAPISecret(apiSecret string) *Api {
+func (api *API) WithAPISecret(apiSecret string) *API {
 	api.apiSecret = apiSecret
 	return api
 }
 
-func (api *Api) getApiSecretKey() string {
+func (api *API) getApiSecretKey() string {
 	if api.apiSecret != "" {
 		return api.apiSecret
 	}
 	return api.c.getApiSecretKey()
 }
 
-func (api *Api) createBaseRequest(ctx context.Context, method, apiUrl string, body interface{}) (*http.Request, error) {
+func (api *API) createBaseRequest(ctx context.Context, method, apiUrl string, body interface{}) (*http.Request, error) {
 	var b io.Reader
 	if body != nil {
 		reqBytes, err := json.Marshal(body)
@@ -205,7 +205,7 @@ func (api *Api) createBaseRequest(ctx context.Context, method, apiUrl string, bo
 /* Create chat message
  * Create a new conversation message or continue an existing dialogue.
  */
-func (api *Api) ChatMessages(ctx context.Context, req *ChatMessageRequest) (resp *ChatMessageResponse, err error) {
+func (api *API) ChatMessages(ctx context.Context, req *ChatMessageRequest) (resp *ChatMessageResponse, err error) {
 	req.ResponseMode = "blocking"
 
 	httpReq, err := api.createBaseRequest(ctx, http.MethodPost, chatMessages, req)
@@ -216,7 +216,7 @@ func (api *Api) ChatMessages(ctx context.Context, req *ChatMessageRequest) (resp
 	return
 }
 
-func (api *Api) ChatMessagesStreamRaw(ctx context.Context, req *ChatMessageRequest) (*http.Response, error) {
+func (api *API) ChatMessagesStreamRaw(ctx context.Context, req *ChatMessageRequest) (*http.Response, error) {
 	req.ResponseMode = "streaming"
 
 	httpReq, err := api.createBaseRequest(ctx, http.MethodPost, chatMessages, req)
@@ -226,7 +226,7 @@ func (api *Api) ChatMessagesStreamRaw(ctx context.Context, req *ChatMessageReque
 	return api.c.sendRequest(httpReq)
 }
 
-func (api *Api) ChatMessagesStream(ctx context.Context, req *ChatMessageRequest) (chan ChatMessageStreamChannelResponse, error) {
+func (api *API) ChatMessagesStream(ctx context.Context, req *ChatMessageRequest) (chan ChatMessageStreamChannelResponse, error) {
 	httpResp, err := api.ChatMessagesStreamRaw(ctx, req)
 	if err != nil {
 		return nil, err
@@ -237,7 +237,7 @@ func (api *Api) ChatMessagesStream(ctx context.Context, req *ChatMessageRequest)
 	return streamChannel, nil
 }
 
-func (api *Api) chatMessagesStreamHandle(ctx context.Context, resp *http.Response, streamChannel chan ChatMessageStreamChannelResponse) {
+func (api *API) chatMessagesStreamHandle(ctx context.Context, resp *http.Response, streamChannel chan ChatMessageStreamChannelResponse) {
 	var (
 		body   = resp.Body
 		reader = bufio.NewReader(body)
@@ -297,7 +297,7 @@ func (api *Api) chatMessagesStreamHandle(ctx context.Context, resp *http.Respons
  * Rate received messages on behalf of end-users with likes or dislikes.
  * This data is visible in the Logs & Annotations page and used for future model fine-tuning.
  */
-func (api *Api) MessagesFeedbacks(ctx context.Context, req *MessagesFeedbacksRequest) (resp *MessagesFeedbacksResponse, err error) {
+func (api *API) MessagesFeedbacks(ctx context.Context, req *MessagesFeedbacksRequest) (resp *MessagesFeedbacksResponse, err error) {
 	if req.MessageID == "" {
 		err = errors.New("MessagesFeedbacksRequest.MessageID Illegal")
 		return
@@ -317,7 +317,7 @@ func (api *Api) MessagesFeedbacks(ctx context.Context, req *MessagesFeedbacksReq
 /* Get the chat history message
  * The first page returns the latest limit bar, which is in reverse order.
  */
-func (api *Api) Messages(ctx context.Context, req *MessagesRequest) (resp *MessagesResponse, err error) {
+func (api *API) Messages(ctx context.Context, req *MessagesRequest) (resp *MessagesResponse, err error) {
 	httpReq, err := api.createBaseRequest(ctx, http.MethodGet, messages, nil)
 	if err != nil {
 		return
@@ -340,7 +340,7 @@ func (api *Api) Messages(ctx context.Context, req *MessagesRequest) (resp *Messa
 /* Get conversation list
  * Gets the session list of the current user. By default, the last 20 sessions are returned.
  */
-func (api *Api) Conversations(ctx context.Context, req *ConversationsRequest) (resp *ConversationsResponse, err error) {
+func (api *API) Conversations(ctx context.Context, req *ConversationsRequest) (resp *ConversationsResponse, err error) {
 	if req.User == "" {
 		err = errors.New("ConversationsRequest.User Illegal")
 		return
@@ -367,7 +367,7 @@ func (api *Api) Conversations(ctx context.Context, req *ConversationsRequest) (r
 /* Conversation renaming
  * Rename conversations; the name is displayed in multi-session client interfaces.
  */
-func (api *Api) ConversationsRenaming(ctx context.Context, req *ConversationsRenamingRequest) (resp *ConversationsRenamingResponse, err error) {
+func (api *API) ConversationsRenaming(ctx context.Context, req *ConversationsRenamingRequest) (resp *ConversationsRenamingResponse, err error) {
 	url := strings.ReplaceAll(conversationsRename, "{conversation_id}", req.ConversationID)
 	req.ConversationID = ""
 
@@ -383,7 +383,7 @@ func (api *Api) ConversationsRenaming(ctx context.Context, req *ConversationsRen
  * Retrieve configured Input parameters, including variable names, field names, types, and default values.
  * Typically used for displaying these fields in a form or filling in default values after the client loads.
  */
-func (api *Api) Parameters(ctx context.Context, req *ParametersRequest) (resp *ParametersResponse, err error) {
+func (api *API) Parameters(ctx context.Context, req *ParametersRequest) (resp *ParametersResponse, err error) {
 	if req.User == "" {
 		err = errors.New("ParametersRequest.User Illegal")
 		return

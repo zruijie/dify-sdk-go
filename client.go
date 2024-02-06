@@ -77,8 +77,13 @@ func (c *Client) getApiSecretKey() string {
 	return c.apiSecretKey
 }
 
-func (c *Client) Api() *Api {
-	return &Api{
+// Api deprecated, use API() instead
+func (c *Client) Api() *API {
+	return c.API()
+}
+
+func (c *Client) API() *API {
+	return &API{
 		c: c,
 	}
 }
