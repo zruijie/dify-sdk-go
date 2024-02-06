@@ -165,7 +165,20 @@ const (
 )
 
 type Api struct {
-	c *Client
+	c         *Client
+	apiSecret string
+}
+
+func (api *Api) WithAPISecret(apiSecret string) *Api {
+	api.apiSecret = apiSecret
+	return api
+}
+
+func (api *Api) getApiSecretKey() string {
+	if api.apiSecret != "" {
+		return api.apiSecret
+	}
+	return api.c.getApiSecretKey()
 }
 
 func (api *Api) createBaseRequest(ctx context.Context, method, apiUrl string, body interface{}) (*http.Request, error) {
@@ -183,7 +196,7 @@ func (api *Api) createBaseRequest(ctx context.Context, method, apiUrl string, bo
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+api.c.getApiSecretKey())
+	req.Header.Set("Authorization", "Bearer "+api.getApiSecretKey())
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	return req, nil
