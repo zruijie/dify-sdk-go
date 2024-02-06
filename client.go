@@ -12,10 +12,10 @@ import (
 )
 
 type Client struct {
-	host string
+	host         string
 	apiSecretKey string
 
-	httpClient *http.Client
+	httpClient  *http.Client
 	httpRequest *http.Request
 }
 
@@ -30,15 +30,15 @@ func NewClientWithConfig(c *ClientConfig) *Client {
 	}
 
 	return &Client{
-		host: c.Host,
+		host:         c.Host,
 		apiSecretKey: c.ApiSecretKey,
-		httpClient: httpClient,
+		httpClient:   httpClient,
 	}
 }
 
 func NewClient(host, apiSecretKey string) *Client {
 	return NewClientWithConfig(&ClientConfig{
-		Host: host,
+		Host:         host,
 		ApiSecretKey: apiSecretKey,
 	})
 }

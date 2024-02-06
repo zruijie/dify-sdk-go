@@ -13,12 +13,12 @@ import (
 )
 
 var (
-	chatMessages = "/v1/chat-messages"
-	messagesFeedbacks = "/v1/messages/{message_id}/feedbacks"
-	messages = "/v1/messages"
-	conversations = "/v1/conversations"
+	chatMessages        = "/v1/chat-messages"
+	messagesFeedbacks   = "/v1/messages/{message_id}/feedbacks"
+	messages            = "/v1/messages"
+	conversations       = "/v1/conversations"
 	conversationsRename = "/v1/conversations/{conversation_id}/name"
-	parameters = "/v1/parameters"
+	parameters          = "/v1/parameters"
 )
 
 type ErrorResponse struct {
@@ -28,18 +28,18 @@ type ErrorResponse struct {
 }
 
 type ChatMessageRequest struct {
-	Inputs map[string]interface{} `json:"inputs"`
-	Query string `json:"query"`
-	ResponseMode string `json:"response_mode"`
-	ConversationID string `json:"conversation_id,omitempty"`
-	User string `json:"user"`
+	Inputs         map[string]interface{} `json:"inputs"`
+	Query          string                 `json:"query"`
+	ResponseMode   string                 `json:"response_mode"`
+	ConversationID string                 `json:"conversation_id,omitempty"`
+	User           string                 `json:"user"`
 }
 
 type ChatMessageResponse struct {
-	ID string `json:"id"`
-	Answer string `json:"answer"`
+	ID             string `json:"id"`
+	Answer         string `json:"answer"`
 	ConversationID string `json:"conversation_id"`
-	CreatedAt int `json:"created_at"`
+	CreatedAt      int    `json:"created_at"`
 }
 
 type ChatMessageStreamResponse struct {
@@ -58,12 +58,12 @@ type ChatMessageStreamChannelResponse struct {
 
 type MessagesFeedbacksRequest struct {
 	MessageID string `json:"message_id,omitempty"`
-	Rating string `json:"rating,omitempty"`
-	User string `json:"user"`
+	Rating    string `json:"rating,omitempty"`
+	User      string `json:"user"`
 }
 
 type MessagesFeedbacksResponse struct {
-	HasMore bool   `json:"has_more"`
+	HasMore bool                            `json:"has_more"`
 	Data    []MessagesFeedbacksDataResponse `json:"data"`
 }
 
@@ -80,15 +80,15 @@ type MessagesFeedbacksDataResponse struct {
 
 type MessagesRequest struct {
 	ConversationID string `json:"conversation_id"`
-	FirstID string `json:"first_id,omitempty"`
-	Limit int `json:"limit"`
-	User string `json:"user"`
+	FirstID        string `json:"first_id,omitempty"`
+	Limit          int    `json:"limit"`
+	User           string `json:"user"`
 }
 
 type MessagesResponse struct {
-	Limit    int        `json:"limit"`
-	HasMore  bool       `json:"has_more"`
-	Data     []MessagesDataResponse `json:"data"`
+	Limit   int                    `json:"limit"`
+	HasMore bool                   `json:"has_more"`
+	Data    []MessagesDataResponse `json:"data"`
 }
 
 type MessagesDataResponse struct {
@@ -103,13 +103,13 @@ type MessagesDataResponse struct {
 
 type ConversationsRequest struct {
 	LastID string `json:"last_id,omitempty"`
-	Limit int `json:"limit"`
-	User string `json:"user"`
+	Limit  int    `json:"limit"`
+	User   string `json:"user"`
 }
 
 type ConversationsResponse struct {
-	Limit   int    `json:"limit"`
-	HasMore bool   `json:"has_more"`
+	Limit   int                         `json:"limit"`
+	HasMore bool                        `json:"has_more"`
 	Data    []ConversationsDataResponse `json:"data"`
 }
 
@@ -123,8 +123,8 @@ type ConversationsDataResponse struct {
 
 type ConversationsRenamingRequest struct {
 	ConversationID string `json:"conversation_id,omitempty"`
-	Name string `json:"name"`
-	User string `json:"user"`
+	Name           string `json:"name"`
+	User           string `json:"user"`
 }
 
 type ConversationsRenamingResponse struct {
@@ -136,8 +136,8 @@ type ParametersRequest struct {
 }
 
 type ParametersResponse struct {
-	OpeningStatement            string         `json:"opening_statement"`
-	SuggestedQuestions          []interface{}  `json:"suggested_questions"`
+	OpeningStatement              string        `json:"opening_statement"`
+	SuggestedQuestions            []interface{} `json:"suggested_questions"`
 	SuggestedQuestionsAfterAnswer struct {
 		Enabled bool `json:"enabled"`
 	} `json:"suggested_questions_after_answer"`
@@ -160,7 +160,7 @@ type ParametersResponse struct {
 // }
 
 const (
-	FeedbackLike = "like"
+	FeedbackLike    = "like"
 	FeedbackDislike = "dislike"
 )
 
@@ -175,7 +175,7 @@ func (api *Api) buildRequestApi(requestUrl string) string {
 func (api *Api) createBaseRequest(ctx context.Context, method string, url string, req ...interface{}) (r *http.Request, err error) {
 	if r, err = api.c.NewHttpRequest(ctx, method, url, req...); err == nil {
 		api.c.SetHttpRequest(r).
-			SetHttpRequestHeader("Authorization", "Bearer " + api.c.GetApiSecretKey()).
+			SetHttpRequestHeader("Authorization", "Bearer "+api.c.GetApiSecretKey()).
 			SetHttpRequestHeader("Cache-Control", "no-cache").
 			SetHttpRequestHeader("Content-Type", "application/json; charset=utf-8")
 	}
@@ -250,10 +250,10 @@ func (api *Api) ChatMessagesStream(ctx context.Context, req *ChatMessageRequest)
 
 func (api *Api) chatMessagesStreamHandle(ctx context.Context, resp *http.Response, streamChannel chan ChatMessageStreamChannelResponse) {
 	var (
-		body = resp.Body
+		body   = resp.Body
 		reader = bufio.NewReader(body)
 
-		err error
+		err  error
 		line []byte
 	)
 
@@ -264,7 +264,7 @@ func (api *Api) chatMessagesStreamHandle(ctx context.Context, resp *http.Respons
 		var errResp ErrorResponse
 		var _err error
 		if _err = json.Unmarshal(line, &errResp); _err == nil {
-			streamChannel <-ChatMessageStreamChannelResponse{
+			streamChannel <- ChatMessageStreamChannelResponse{
 				Err: errors.New(string(line)),
 			}
 			return
@@ -273,39 +273,39 @@ func (api *Api) chatMessagesStreamHandle(ctx context.Context, resp *http.Respons
 
 	for {
 		select {
-			case <-ctx.Done():
+		case <-ctx.Done():
+			return
+		default:
+			if line, err = reader.ReadBytes('\n'); err != nil {
+				streamChannel <- ChatMessageStreamChannelResponse{
+					Err: errors.New("Error reading line: " + err.Error()),
+				}
 				return
-			default:
-				if line, err = reader.ReadBytes('\n'); err != nil {
-					streamChannel <-ChatMessageStreamChannelResponse{
-						Err: errors.New("Error reading line: " + err.Error()),
-					}
-					return
-				}
+			}
 
-				if !bytes.HasPrefix(line, []byte("data:")) {
-					continue
-				}
+			if !bytes.HasPrefix(line, []byte("data:")) {
+				continue
+			}
 
-				line = bytes.TrimPrefix(line, []byte("data:"))
-				line = bytes.TrimSpace(line)
+			line = bytes.TrimPrefix(line, []byte("data:"))
+			line = bytes.TrimSpace(line)
 
-				var resp ChatMessageStreamChannelResponse
-				if err = json.Unmarshal(line, &resp); err != nil {
-					streamChannel <-ChatMessageStreamChannelResponse{
-						Err: errors.New("Error unmarshalling event: " + err.Error()),
-					}
-					return
-				} else if resp.Answer == "" {
-					return
+			var resp ChatMessageStreamChannelResponse
+			if err = json.Unmarshal(line, &resp); err != nil {
+				streamChannel <- ChatMessageStreamChannelResponse{
+					Err: errors.New("Error unmarshalling event: " + err.Error()),
 				}
-				streamChannel <-resp
+				return
+			} else if resp.Answer == "" {
+				return
+			}
+			streamChannel <- resp
 		}
 	}
 }
 
 /* Message terminal user feedback, like
- * Rate received messages on behalf of end-users with likes or dislikes. 
+ * Rate received messages on behalf of end-users with likes or dislikes.
  * This data is visible in the Logs & Annotations page and used for future model fine-tuning.
  */
 func (api *Api) MessagesFeedbacks(ctx context.Context, req *MessagesFeedbacksRequest) (resp *MessagesFeedbacksResponse, err error) {
@@ -431,7 +431,7 @@ func (api *Api) ConversationsRenaming(ctx context.Context, req *ConversationsRen
 }
 
 /* Obtain application parameter information
- * Retrieve configured Input parameters, including variable names, field names, types, and default values. 
+ * Retrieve configured Input parameters, including variable names, field names, types, and default values.
  * Typically used for displaying these fields in a form or filling in default values after the client loads.
  */
 func (api *Api) Parameters(ctx context.Context, req *ParametersRequest) (resp *ParametersResponse, err error) {

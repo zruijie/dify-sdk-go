@@ -6,8 +6,8 @@ import (
 )
 
 type ClientConfig struct {
-	Host string
+	Host         string
 	ApiSecretKey string
-	Timeout time.Duration
-	Transport *http.Transport
+	Timeout      time.Duration
+	Transport    *http.Transport
 }
