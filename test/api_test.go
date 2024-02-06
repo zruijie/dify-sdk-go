@@ -20,12 +20,7 @@ func TestApi3(t *testing.T) {
 		Host:         host,
 		ApiSecretKey: apiSecretKey,
 	}
-	var client1 = dify.NewClientWithConfig(c)
-
-	var client2 = dify.NewClient(host, apiSecretKey)
-
-	t.Log(client1.GetHost() == client2.GetHost())
-	t.Log(client1.GetApiSecretKey() == client2.GetApiSecretKey())
+	var client = dify.NewClientWithConfig(c)
 
 	ctx := context.Background()
 
@@ -34,7 +29,7 @@ func TestApi3(t *testing.T) {
 		err error
 	)
 
-	ch, err = client1.Api().ChatMessagesStream(ctx, &dify.ChatMessageRequest{
+	ch, err = client.Api().ChatMessagesStream(ctx, &dify.ChatMessageRequest{
 		Query: "你是谁?",
 		User:  "这里换成你创建的",
 	})
@@ -53,7 +48,7 @@ func TestApi3(t *testing.T) {
 			return
 		case r, isOpen := <-ch:
 			if !isOpen {
-				goto M
+				goto done
 			}
 			strBuilder.WriteString(r.Answer)
 			cId = r.ConversationID
@@ -61,7 +56,7 @@ func TestApi3(t *testing.T) {
 		}
 	}
 
-M:
+done:
 	t.Log(strBuilder.String())
 	t.Log(cId)
 }

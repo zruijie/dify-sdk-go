@@ -179,11 +179,11 @@ func (api *Api) createBaseRequest(ctx context.Context, method, apiUrl string, bo
 	} else {
 		b = http.NoBody
 	}
-	req, err := http.NewRequestWithContext(ctx, method, api.c.GetHost()+apiUrl, b)
+	req, err := http.NewRequestWithContext(ctx, method, api.c.getHost()+apiUrl, b)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+api.c.GetApiSecretKey())
+	req.Header.Set("Authorization", "Bearer "+api.c.getApiSecretKey())
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	return req, nil
@@ -199,7 +199,7 @@ func (api *Api) ChatMessages(ctx context.Context, req *ChatMessageRequest) (resp
 	if err != nil {
 		return
 	}
-	err = api.c.SendJSONRequest(httpReq, &resp)
+	err = api.c.sendJSONRequest(httpReq, &resp)
 	return
 }
 
@@ -210,7 +210,7 @@ func (api *Api) ChatMessagesStreamRaw(ctx context.Context, req *ChatMessageReque
 	if err != nil {
 		return nil, err
 	}
-	return api.c.SendRequest(httpReq)
+	return api.c.sendRequest(httpReq)
 }
 
 func (api *Api) ChatMessagesStream(ctx context.Context, req *ChatMessageRequest) (chan ChatMessageStreamChannelResponse, error) {
@@ -297,7 +297,7 @@ func (api *Api) MessagesFeedbacks(ctx context.Context, req *MessagesFeedbacksReq
 	if err != nil {
 		return
 	}
-	err = api.c.SendJSONRequest(httpReq, &resp)
+	err = api.c.sendJSONRequest(httpReq, &resp)
 	return
 }
 
@@ -320,7 +320,7 @@ func (api *Api) Messages(ctx context.Context, req *MessagesRequest) (resp *Messa
 	}
 	httpReq.URL.RawQuery = query.Encode()
 
-	err = api.c.SendJSONRequest(httpReq, &resp)
+	err = api.c.sendJSONRequest(httpReq, &resp)
 	return
 }
 
@@ -347,7 +347,7 @@ func (api *Api) Conversations(ctx context.Context, req *ConversationsRequest) (r
 	query.Set("limit", strconv.FormatInt(int64(req.Limit), 10))
 	httpReq.URL.RawQuery = query.Encode()
 
-	err = api.c.SendJSONRequest(httpReq, &resp)
+	err = api.c.sendJSONRequest(httpReq, &resp)
 	return
 }
 
@@ -362,7 +362,7 @@ func (api *Api) ConversationsRenaming(ctx context.Context, req *ConversationsRen
 	if err != nil {
 		return
 	}
-	err = api.c.SendJSONRequest(httpReq, &resp)
+	err = api.c.sendJSONRequest(httpReq, &resp)
 	return
 }
 
@@ -384,6 +384,6 @@ func (api *Api) Parameters(ctx context.Context, req *ParametersRequest) (resp *P
 	query.Set("user", req.User)
 	httpReq.URL.RawQuery = query.Encode()
 
-	err = api.c.SendJSONRequest(httpReq, &resp)
+	err = api.c.sendJSONRequest(httpReq, &resp)
 	return
 }

@@ -37,12 +37,12 @@ func NewClient(host, apiSecretKey string) *Client {
 	})
 }
 
-func (c *Client) SendRequest(req *http.Request) (*http.Response, error) {
+func (c *Client) sendRequest(req *http.Request) (*http.Response, error) {
 	return c.httpClient.Do(req)
 }
 
-func (c *Client) SendJSONRequest(req *http.Request, res interface{}) error {
-	resp, err := c.SendRequest(req)
+func (c *Client) sendJSONRequest(req *http.Request, res interface{}) error {
+	resp, err := c.sendRequest(req)
 	if err != nil {
 		return err
 	}
@@ -68,12 +68,12 @@ func (c *Client) SendJSONRequest(req *http.Request, res interface{}) error {
 	return nil
 }
 
-func (c *Client) GetHost() string {
+func (c *Client) getHost() string {
 	var host = strings.TrimSuffix(c.host, "/")
 	return host
 }
 
-func (c *Client) GetApiSecretKey() string {
+func (c *Client) getApiSecretKey() string {
 	return c.apiSecretKey
 }
 
