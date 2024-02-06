@@ -1,22 +1,16 @@
 package dify
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
-	"io"
+	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
 type Client struct {
 	host         string
 	apiSecretKey string
-
-	httpClient  *http.Client
-	httpRequest *http.Request
+	httpClient   *http.Client
 }
 
 func NewClientWithConfig(c *ClientConfig) *Client {
@@ -43,68 +37,35 @@ func NewClient(host, apiSecretKey string) *Client {
 	})
 }
 
-func (c *Client) NewHttpRequest(ctx context.Context, method, requestUrl string, request ...interface{}) (r *http.Request, err error) {
-	if method == http.MethodGet {
-		if len(request) > 0 {
-			if urlValues, ok := request[0].(url.Values); ok {
-				var requestUrlParse *url.URL
-				if requestUrlParse, err = url.Parse(requestUrl); err != nil {
-					return
-				}
-				requestUrlParse.RawQuery = urlValues.Encode()
-				requestUrl = requestUrlParse.String()
-			}
-		}
-		r, err = http.NewRequestWithContext(ctx, method, requestUrl, http.NoBody)
-	} else if method == http.MethodPost {
-		var b io.Reader
-		if len(request) > 0 {
-			var reqBytes []byte
-			if reqBytes, err = json.Marshal(request[0]); err != nil {
-				return
-			}
-			b = bytes.NewBuffer(reqBytes)
-		} else {
-			b = http.NoBody
-		}
-		r, err = http.NewRequestWithContext(ctx, method, requestUrl, b)
-	} else {
-		err = errors.New("NewHttpRequest.method must be http.MethodGet or http.MethodPost")
-	}
-	return
+func (c *Client) SendRequest(req *http.Request) (*http.Response, error) {
+	return c.httpClient.Do(req)
 }
 
-func (c *Client) SetHttpRequest(r *http.Request) *Client {
-	c.httpRequest = r
-	return c
-}
-
-func (c *Client) SetHttpRequestHeader(key string, value string) *Client {
-	c.httpRequest.Header.Set(key, value)
-	return c
-}
-
-func (c *Client) SendRequest(res interface{}) (err error) {
-	if c.httpRequest == nil {
-		panic("http_request illegal")
+func (c *Client) SendJSONRequest(req *http.Request, res interface{}) error {
+	resp, err := c.SendRequest(req)
+	if err != nil {
+		return err
 	}
-	var resp *http.Response
-	if resp, err = c.httpClient.Do(c.httpRequest); err != nil {
-		return
-	}
-
 	defer resp.Body.Close()
 
-	err = json.NewDecoder(resp.Body).Decode(res)
-	return
-}
-
-func (c *Client) SendRequestStream() (resp *http.Response, err error) {
-	if c.httpRequest == nil {
-		panic("http_request illegal")
+	if resp.StatusCode != http.StatusOK {
+		var errBody struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+			Status  int    `json:"status"`
+		}
+		err = json.NewDecoder(resp.Body).Decode(&errBody)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("HTTP response error: [%v]%v", errBody.Code, errBody.Message)
 	}
-	resp, err = c.httpClient.Do(c.httpRequest)
-	return
+
+	err = json.NewDecoder(resp.Body).Decode(res)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Client) GetHost() string {

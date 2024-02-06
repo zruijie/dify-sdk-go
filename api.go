@@ -6,8 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 )
@@ -168,84 +168,60 @@ type Api struct {
 	c *Client
 }
 
-func (api *Api) buildRequestApi(requestUrl string) string {
-	return api.c.GetHost() + requestUrl
-}
-
-func (api *Api) createBaseRequest(ctx context.Context, method string, url string, req ...interface{}) (r *http.Request, err error) {
-	if r, err = api.c.NewHttpRequest(ctx, method, url, req...); err == nil {
-		api.c.SetHttpRequest(r).
-			SetHttpRequestHeader("Authorization", "Bearer "+api.c.GetApiSecretKey()).
-			SetHttpRequestHeader("Cache-Control", "no-cache").
-			SetHttpRequestHeader("Content-Type", "application/json; charset=utf-8")
+func (api *Api) createBaseRequest(ctx context.Context, method, apiUrl string, body interface{}) (*http.Request, error) {
+	var b io.Reader
+	if body != nil {
+		reqBytes, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		b = bytes.NewBuffer(reqBytes)
+	} else {
+		b = http.NoBody
 	}
-	return
-}
-
-func (api *Api) createGetRequest(ctx context.Context, url string, req ...interface{}) (*http.Request, error) {
-	return api.createBaseRequest(ctx, http.MethodGet, url, req...)
-}
-
-func (api *Api) createPostRequest(ctx context.Context, url string, req ...interface{}) (*http.Request, error) {
-	return api.createBaseRequest(ctx, http.MethodPost, url, req...)
-}
-
-func (api *Api) createChatMessageHttpRequest(ctx context.Context, req *ChatMessageRequest) (r *http.Request, err error) {
-	r, err = api.createPostRequest(ctx, api.buildRequestApi(chatMessages), req)
-	return
+	req, err := http.NewRequestWithContext(ctx, method, api.c.GetHost()+apiUrl, b)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+api.c.GetApiSecretKey())
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	return req, nil
 }
 
 /* Create chat message
  * Create a new conversation message or continue an existing dialogue.
  */
 func (api *Api) ChatMessages(ctx context.Context, req *ChatMessageRequest) (resp *ChatMessageResponse, err error) {
-	if req == nil {
-		err = errors.New("ChatMessages.ChatMessageRequest Illegal")
-		return
-	}
 	req.ResponseMode = "blocking"
 
-	var r *http.Request
-	if r, err = api.createChatMessageHttpRequest(ctx, req); err != nil {
+	httpReq, err := api.createBaseRequest(ctx, http.MethodPost, chatMessages, req)
+	if err != nil {
 		return
 	}
-
-	var _resp ChatMessageResponse
-
-	err = api.c.SetHttpRequest(r).SendRequest(&_resp)
-	resp = &_resp
+	err = api.c.SendJSONRequest(httpReq, &resp)
 	return
 }
 
-func (api *Api) ChatMessagesStreamRaw(ctx context.Context, req *ChatMessageRequest) (resp *http.Response, err error) {
-	if req == nil {
-		err = errors.New("ChatMessagesStreamRaw.ChatMessageRequest Illegal")
-		return
-	}
+func (api *Api) ChatMessagesStreamRaw(ctx context.Context, req *ChatMessageRequest) (*http.Response, error) {
 	req.ResponseMode = "streaming"
 
-	var r *http.Request
-	if r, err = api.createChatMessageHttpRequest(ctx, req); err != nil {
-		return
+	httpReq, err := api.createBaseRequest(ctx, http.MethodPost, chatMessages, req)
+	if err != nil {
+		return nil, err
 	}
-
-	return api.c.SetHttpRequest(r).SendRequestStream()
+	return api.c.SendRequest(httpReq)
 }
 
-func (api *Api) ChatMessagesStream(ctx context.Context, req *ChatMessageRequest) (streamChannel chan ChatMessageStreamChannelResponse, err error) {
-	if req == nil {
-		err = errors.New("ChatMessagesStream.ChatMessageRequest Illegal")
-		return
+func (api *Api) ChatMessagesStream(ctx context.Context, req *ChatMessageRequest) (chan ChatMessageStreamChannelResponse, error) {
+	httpResp, err := api.ChatMessagesStreamRaw(ctx, req)
+	if err != nil {
+		return nil, err
 	}
 
-	var resp *http.Response
-	if resp, err = api.ChatMessagesStreamRaw(ctx, req); err != nil {
-		return
-	}
-
-	streamChannel = make(chan ChatMessageStreamChannelResponse)
-	go api.chatMessagesStreamHandle(ctx, resp, streamChannel)
-	return
+	streamChannel := make(chan ChatMessageStreamChannelResponse)
+	go api.chatMessagesStreamHandle(ctx, httpResp, streamChannel)
+	return streamChannel, nil
 }
 
 func (api *Api) chatMessagesStreamHandle(ctx context.Context, resp *http.Response, streamChannel chan ChatMessageStreamChannelResponse) {
@@ -309,29 +285,19 @@ func (api *Api) chatMessagesStreamHandle(ctx context.Context, resp *http.Respons
  * This data is visible in the Logs & Annotations page and used for future model fine-tuning.
  */
 func (api *Api) MessagesFeedbacks(ctx context.Context, req *MessagesFeedbacksRequest) (resp *MessagesFeedbacksResponse, err error) {
-	if req == nil {
-		err = errors.New("MessagesFeedbacks.MessagesFeedbacksRequest Illegal")
-		return
-	}
 	if req.MessageID == "" {
 		err = errors.New("MessagesFeedbacksRequest.MessageID Illegal")
 		return
 	}
 
-	var url = api.buildRequestApi(messagesFeedbacks)
-	url = strings.ReplaceAll(url, "{message_id}", req.MessageID)
-
+	url := strings.ReplaceAll(messagesFeedbacks, "{message_id}", req.MessageID)
 	req.MessageID = ""
 
-	var r *http.Request
-	if r, err = api.createPostRequest(ctx, url, req); err != nil {
+	httpReq, err := api.createBaseRequest(ctx, http.MethodPost, url, req)
+	if err != nil {
 		return
 	}
-
-	var _resp MessagesFeedbacksResponse
-
-	err = api.c.SetHttpRequest(r).SendRequest(&_resp)
-	resp = &_resp
+	err = api.c.SendJSONRequest(httpReq, &resp)
 	return
 }
 
@@ -339,32 +305,22 @@ func (api *Api) MessagesFeedbacks(ctx context.Context, req *MessagesFeedbacksReq
  * The first page returns the latest limit bar, which is in reverse order.
  */
 func (api *Api) Messages(ctx context.Context, req *MessagesRequest) (resp *MessagesResponse, err error) {
-	if req == nil {
-		err = errors.New("Messages.MessagesRequest Illegal")
+	httpReq, err := api.createBaseRequest(ctx, http.MethodGet, messages, nil)
+	if err != nil {
 		return
 	}
-
-	var u = url.Values{}
-	u.Set("conversation_id", req.ConversationID)
-	u.Set("user", req.User)
-
+	query := httpReq.URL.Query()
+	query.Set("conversation_id", req.ConversationID)
+	query.Set("user", req.User)
 	if req.FirstID != "" {
-		u.Set("first_id", req.FirstID)
+		query.Set("first_id", req.FirstID)
 	}
 	if req.Limit > 0 {
-		var l = int64(req.Limit)
-		u.Set("limit", strconv.FormatInt(l, 10))
+		query.Set("limit", strconv.FormatInt(int64(req.Limit), 10))
 	}
+	httpReq.URL.RawQuery = query.Encode()
 
-	var r *http.Request
-	if r, err = api.createGetRequest(ctx, api.buildRequestApi(messages), u); err != nil {
-		return
-	}
-
-	var _resp MessagesResponse
-
-	err = api.c.SetHttpRequest(r).SendRequest(&_resp)
-	resp = &_resp
+	err = api.c.SendJSONRequest(httpReq, &resp)
 	return
 }
 
@@ -372,11 +328,6 @@ func (api *Api) Messages(ctx context.Context, req *MessagesRequest) (resp *Messa
  * Gets the session list of the current user. By default, the last 20 sessions are returned.
  */
 func (api *Api) Conversations(ctx context.Context, req *ConversationsRequest) (resp *ConversationsResponse, err error) {
-	if req == nil {
-		err = errors.New("Conversations.ConversationsRequest Illegal")
-		return
-	}
-
 	if req.User == "" {
 		err = errors.New("ConversationsRequest.User Illegal")
 		return
@@ -385,22 +336,18 @@ func (api *Api) Conversations(ctx context.Context, req *ConversationsRequest) (r
 		req.Limit = 20
 	}
 
-	var u = url.Values{}
-	u.Set("last_id", req.LastID)
-	u.Set("user", req.User)
-
-	var l = int64(req.Limit)
-	u.Set("limit", strconv.FormatInt(l, 10))
-
-	var r *http.Request
-	if r, err = api.createGetRequest(ctx, api.buildRequestApi(conversations), u); err != nil {
+	httpReq, err := api.createBaseRequest(ctx, http.MethodGet, conversations, nil)
+	if err != nil {
 		return
 	}
 
-	var _resp ConversationsResponse
+	query := httpReq.URL.Query()
+	query.Set("last_id", req.LastID)
+	query.Set("user", req.User)
+	query.Set("limit", strconv.FormatInt(int64(req.Limit), 10))
+	httpReq.URL.RawQuery = query.Encode()
 
-	err = api.c.SetHttpRequest(r).SendRequest(&_resp)
-	resp = &_resp
+	err = api.c.SendJSONRequest(httpReq, &resp)
 	return
 }
 
@@ -408,25 +355,14 @@ func (api *Api) Conversations(ctx context.Context, req *ConversationsRequest) (r
  * Rename conversations; the name is displayed in multi-session client interfaces.
  */
 func (api *Api) ConversationsRenaming(ctx context.Context, req *ConversationsRenamingRequest) (resp *ConversationsRenamingResponse, err error) {
-	if req == nil {
-		err = errors.New("ConversationsRenaming.ConversationsRenamingRequest Illegal")
-		return
-	}
-
-	var url = api.buildRequestApi(conversationsRename)
-	url = strings.ReplaceAll(url, "{conversation_id}", req.ConversationID)
-
+	url := strings.ReplaceAll(conversationsRename, "{conversation_id}", req.ConversationID)
 	req.ConversationID = ""
 
-	var r *http.Request
-	if r, err = api.createPostRequest(ctx, url, req); err != nil {
+	httpReq, err := api.createBaseRequest(ctx, http.MethodPost, url, req)
+	if err != nil {
 		return
 	}
-
-	var _resp ConversationsRenamingResponse
-
-	err = api.c.SetHttpRequest(r).SendRequest(&_resp)
-	resp = &_resp
+	err = api.c.SendJSONRequest(httpReq, &resp)
 	return
 }
 
@@ -435,26 +371,19 @@ func (api *Api) ConversationsRenaming(ctx context.Context, req *ConversationsRen
  * Typically used for displaying these fields in a form or filling in default values after the client loads.
  */
 func (api *Api) Parameters(ctx context.Context, req *ParametersRequest) (resp *ParametersResponse, err error) {
-	if req == nil {
-		err = errors.New("Parameters.ParametersRequest Illegal")
-		return
-	}
 	if req.User == "" {
 		err = errors.New("ParametersRequest.User Illegal")
 		return
 	}
 
-	var u = url.Values{}
-	u.Set("user", req.User)
-
-	var r *http.Request
-	if r, err = api.createGetRequest(ctx, api.buildRequestApi(parameters), u); err != nil {
+	httpReq, err := api.createBaseRequest(ctx, http.MethodGet, parameters, nil)
+	if err != nil {
 		return
 	}
+	query := httpReq.URL.Query()
+	query.Set("user", req.User)
+	httpReq.URL.RawQuery = query.Encode()
 
-	var _resp ParametersResponse
-
-	err = api.c.SetHttpRequest(r).SendRequest(&_resp)
-	resp = &_resp
+	err = api.c.SendJSONRequest(httpReq, &resp)
 	return
 }
