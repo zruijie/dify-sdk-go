@@ -22,7 +22,7 @@ type Client struct {
 func NewClientWithConfig(c *ClientConfig) *Client {
 	var httpClient = &http.Client{}
 
-	if c.Timeout == 0 {
+	if c.Timeout != 0 {
 		httpClient.Timeout = c.Timeout
 	}
 	if c.Transport != nil {
