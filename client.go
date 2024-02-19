@@ -8,9 +8,9 @@ import (
 )
 
 type Client struct {
-	host         string
-	apiSecretKey string
-	httpClient   *http.Client
+	host             string
+	defaultAPISecret string
+	httpClient       *http.Client
 }
 
 func NewClientWithConfig(c *ClientConfig) *Client {
@@ -23,17 +23,21 @@ func NewClientWithConfig(c *ClientConfig) *Client {
 		httpClient.Transport = c.Transport
 	}
 
+	secret := c.DefaultAPISecret
+	if secret == "" {
+		secret = c.ApiSecretKey
+	}
 	return &Client{
-		host:         c.Host,
-		apiSecretKey: c.ApiSecretKey,
-		httpClient:   httpClient,
+		host:             c.Host,
+		defaultAPISecret: secret,
+		httpClient:       httpClient,
 	}
 }
 
-func NewClient(host, apiSecretKey string) *Client {
+func NewClient(host, defaultAPISecret string) *Client {
 	return NewClientWithConfig(&ClientConfig{
-		Host:         host,
-		ApiSecretKey: apiSecretKey,
+		Host:             host,
+		DefaultAPISecret: defaultAPISecret,
 	})
 }
 
@@ -73,8 +77,8 @@ func (c *Client) getHost() string {
 	return host
 }
 
-func (c *Client) getApiSecretKey() string {
-	return c.apiSecretKey
+func (c *Client) getAPISecret() string {
+	return c.defaultAPISecret
 }
 
 // Api deprecated, use API() instead
