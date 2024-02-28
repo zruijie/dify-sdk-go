@@ -13,12 +13,6 @@ type API struct {
 	secret string
 }
 
-type ErrorResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	Params  string `json:"params"`
-}
-
 func (api *API) WithSecret(secret string) *API {
 	api.secret = secret
 	return api
