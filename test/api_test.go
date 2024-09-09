@@ -11,32 +11,27 @@ import (
 )
 
 var (
-	host = "这里填写你的host"
+	host         = "这里填写你的host"
 	apiSecretKey = "这里填写你的api secret key"
 )
 
 func TestApi3(t *testing.T) {
 	var c = &dify.ClientConfig{
-		Host: host,
+		Host:         host,
 		ApiSecretKey: apiSecretKey,
 	}
-	var client1 = dify.NewClientWithConfig(c)
+	var client = dify.NewClientWithConfig(c)
 
-	var client2 = dify.NewClient(host, apiSecretKey)
-
-	t.Log(client1.GetHost() == client2.GetHost())
-	t.Log(client1.GetApiSecretKey() == client2.GetApiSecretKey())
-
-	var ctx, _ = context.WithCancel(context.Background())
+	ctx := context.Background()
 
 	var (
-		ch = make(chan dify.ChatMessageStreamChannelResponse)
+		ch  = make(chan dify.ChatMessageStreamChannelResponse)
 		err error
 	)
 
-	ch, err = client1.Api().ChatMessagesStream(ctx, &dify.ChatMessageRequest{
+	ch, err = client.Api().ChatMessagesStream(ctx, &dify.ChatMessageRequest{
 		Query: "你是谁?",
-		User: "这里换成你创建的",
+		User:  "这里换成你创建的",
 	})
 	if err != nil {
 		t.Fatal(err.Error())
@@ -44,7 +39,7 @@ func TestApi3(t *testing.T) {
 
 	var (
 		strBuilder strings.Builder
-		cId string
+		cId        string
 	)
 	for {
 		select {
@@ -53,7 +48,7 @@ func TestApi3(t *testing.T) {
 			return
 		case r, isOpen := <-ch:
 			if !isOpen {
-				goto M
+				goto done
 			}
 			strBuilder.WriteString(r.Answer)
 			cId = r.ConversationID
@@ -61,7 +56,7 @@ func TestApi3(t *testing.T) {
 		}
 	}
 
-	M:
+done:
 	t.Log(strBuilder.String())
 	t.Log(cId)
 }
@@ -69,12 +64,12 @@ func TestApi3(t *testing.T) {
 func TestMessages(t *testing.T) {
 	var cId = "ec373942-2d17-4f11-89bb-f9bbf863ebcc"
 	var err error
-	var ctx, _ = context.WithCancel(context.Background())
+	ctx := context.Background()
 
 	// messages
 	var messageReq = &dify.MessagesRequest{
 		ConversationID: cId,
-		User: "jiuquan AI",
+		User:           "jiuquan AI",
 	}
 
 	var client = dify.NewClient(host, apiSecretKey)
@@ -91,15 +86,15 @@ func TestMessages(t *testing.T) {
 func TestMessagesFeedbacks(t *testing.T) {
 	var client = dify.NewClient(host, apiSecretKey)
 	var err error
-	var ctx, _ = context.WithCancel(context.Background())
+	ctx := context.Background()
 
 	var id = "72d3dc0f-a6d5-4b5e-8510-bec0611a6048"
 
 	var res *dify.MessagesFeedbacksResponse
 	if res, err = client.Api().MessagesFeedbacks(ctx, &dify.MessagesFeedbacksRequest{
 		MessageID: id,
-		Rating: dify.FeedbackLike,
-		User: "jiuquan AI",
+		Rating:    dify.FeedbackLike,
+		User:      "jiuquan AI",
 	}); err != nil {
 		t.Fatal(err.Error())
 	}
@@ -112,7 +107,7 @@ func TestMessagesFeedbacks(t *testing.T) {
 func TestConversations(t *testing.T) {
 	var client = dify.NewClient(host, apiSecretKey)
 	var err error
-	var ctx, _ = context.WithCancel(context.Background())
+	ctx := context.Background()
 
 	var res *dify.ConversationsResponse
 	if res, err = client.Api().Conversations(ctx, &dify.ConversationsRequest{
@@ -129,13 +124,13 @@ func TestConversations(t *testing.T) {
 func TestConversationsRename(t *testing.T) {
 	var client = dify.NewClient(host, apiSecretKey)
 	var err error
-	var ctx, _ = context.WithCancel(context.Background())
+	ctx := context.Background()
 
 	var res *dify.ConversationsRenamingResponse
 	if res, err = client.Api().ConversationsRenaming(ctx, &dify.ConversationsRenamingRequest{
 		ConversationID: "ec373942-2d17-4f11-89bb-f9bbf863ebcc",
-		Name: "rename!!!",
-		User: "jiuquan AI",
+		Name:           "rename!!!",
+		User:           "jiuquan AI",
 	}); err != nil {
 		t.Fatal(err.Error())
 	}
@@ -148,7 +143,7 @@ func TestConversationsRename(t *testing.T) {
 func TestParameters(t *testing.T) {
 	var client = dify.NewClient(host, apiSecretKey)
 	var err error
-	var ctx, _ = context.WithCancel(context.Background())
+	ctx := context.Background()
 
 	var res *dify.ParametersResponse
 	if res, err = client.Api().Parameters(ctx, &dify.ParametersRequest{
