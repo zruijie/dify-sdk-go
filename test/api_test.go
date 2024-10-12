@@ -11,8 +11,10 @@ import (
 )
 
 var (
-	host         = "这里填写你的host"
-	apiSecretKey = "这里填写你的api secret key"
+	//host         = "这里填写你的host"
+	//apiSecretKey = "这里填写你的api secret key"
+	host         = "https://dify.zhaokm.org"
+	apiSecretKey = "app-h0Xpt3bR74UImZK2sSgbhIoh"
 )
 
 func TestApi3(t *testing.T) {
@@ -155,4 +157,40 @@ func TestParameters(t *testing.T) {
 	j, _ := json.Marshal(res)
 
 	log.Println(string(j))
+}
+
+func TestRunWorkflow(t *testing.T) {
+	var client = dify.NewClient(host, apiSecretKey)
+	var err error
+	ctx := context.Background()
+
+	// 定义 WorkflowRequest
+	var workflowReq = &dify.WorkflowRequest{
+		Inputs: map[string]interface{}{
+			"input1": "value1",
+			"input2": "value2",
+		},
+		ResponseMode: "blocking", // 设置为阻塞模式以等待返回
+		User:         "jiuquan AI",
+	}
+
+	// 发送请求并获取响应
+	var workflowResp *dify.WorkflowResponse
+	if workflowResp, err = client.Api().RunWorkflow(ctx, workflowReq); err != nil {
+		t.Fatal(err.Error())
+		return
+	}
+
+	// 打印响应内容
+	j, _ := json.Marshal(workflowResp)
+	t.Log(string(j))
+
+	// 验证响应是否符合预期
+	if workflowResp.WorkflowRunID == "" || workflowResp.Data.Status == "" {
+		t.Fatalf("Invalid workflow response: %v", workflowResp)
+	}
+
+	t.Logf("Workflow Run ID: %s", workflowResp.WorkflowRunID)
+	t.Logf("Workflow Status: %s", workflowResp.Data.Status)
+	t.Logf("Workflow Outputs: %v", workflowResp.Data.Outputs)
 }
