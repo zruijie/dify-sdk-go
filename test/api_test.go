@@ -6,15 +6,16 @@ import (
 	"log"
 	"strings"
 	"testing"
+	"time"
+
+	"sync"
 
 	"github.com/langgenius/dify-sdk-go"
 )
 
 var (
-	//host         = "这里填写你的host"
-	//apiSecretKey = "这里填写你的api secret key"
-	host         = "https://dify.zhaokm.org"
-	apiSecretKey = "app-h0Xpt3bR74UImZK2sSgbhIoh"
+	host         = "这里填写你的host"
+	apiSecretKey = "这里填写你的api secret key"
 )
 
 func TestApi3(t *testing.T) {
@@ -160,37 +161,114 @@ func TestParameters(t *testing.T) {
 }
 
 func TestRunWorkflow(t *testing.T) {
-	var client = dify.NewClient(host, apiSecretKey)
-	var err error
-	ctx := context.Background()
+	client := dify.NewClient(host, apiSecretKey)
 
-	// 定义 WorkflowRequest
-	var workflowReq = &dify.WorkflowRequest{
+	workflowReq := dify.WorkflowRequest{
 		Inputs: map[string]interface{}{
-			"input1": "value1",
-			"input2": "value2",
+			"image_url": "Some image url",
 		},
-		ResponseMode: "blocking", // 设置为阻塞模式以等待返回
-		User:         "jiuquan AI",
+		ResponseMode: "blocking", // 设置为阻塞模式以等待完整的返回
+		User:         "Zhaokm@AWS",
 	}
 
-	// 发送请求并获取响应
-	var workflowResp *dify.WorkflowResponse
-	if workflowResp, err = client.Api().RunWorkflow(ctx, workflowReq); err != nil {
-		t.Fatal(err.Error())
-		return
+	resp, err := client.API().RunWorkflow(context.Background(), workflowReq)
+
+	if err != nil {
+		t.Fatalf("RunWorkflow encountered an error: %v", err)
 	}
 
-	// 打印响应内容
-	j, _ := json.Marshal(workflowResp)
-	t.Log(string(j))
-
-	// 验证响应是否符合预期
-	if workflowResp.WorkflowRunID == "" || workflowResp.Data.Status == "" {
-		t.Fatalf("Invalid workflow response: %v", workflowResp)
+	if resp.WorkflowRunID == "" {
+		t.Errorf("Expected non-empty WorkflowRunID, got empty")
+	}
+	if resp.TaskID == "" {
+		t.Errorf("Expected non-empty TaskID, got empty")
 	}
 
-	t.Logf("Workflow Run ID: %s", workflowResp.WorkflowRunID)
-	t.Logf("Workflow Status: %s", workflowResp.Data.Status)
-	t.Logf("Workflow Outputs: %v", workflowResp.Data.Outputs)
+	if resp.Data.Status != "succeeded" {
+		t.Errorf("Expected workflow status 'completed', got: %v", resp.Data.Status)
+	}
+	if len(resp.Data.Outputs) == 0 {
+		t.Errorf("Expected outputs, but got none")
+	}
+
+	if resp.Data.ElapsedTime <= 0 {
+		t.Errorf("Expected positive ElapsedTime, but got: %v", resp.Data.ElapsedTime)
+	}
+	if resp.Data.TotalSteps <= 0 {
+		t.Errorf("Expected positive TotalSteps, but got: %v", resp.Data.TotalSteps)
+	}
+
+	t.Logf("Received workflow response: %+v", resp)
+}
+
+func TestRunWorkflowStreaming(t *testing.T) {
+	client := dify.NewClient(host, apiSecretKey)
+
+	workflowReq := dify.WorkflowRequest{
+		Inputs: map[string]interface{}{
+			"image_url": "https://assets.cnzlerp.com/test/aoolia/1-1.jpg",
+		},
+		ResponseMode: "streaming",
+		User:         "Zhaokm@AWS",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var (
+		finalResponse dify.StreamingResponse
+		stepCount     int
+		hasSucceeded  bool
+		mu            sync.Mutex
+	)
+
+	handler := func(streamResp dify.StreamingResponse) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		stepCount++
+		t.Logf("Received step %d response: %+v", stepCount, streamResp)
+
+		if streamResp.Data.Status == "succeeded" {
+			hasSucceeded = true
+		}
+
+		finalResponse = streamResp
+	}
+
+	err := client.API().RunStreamWorkflow(ctx, workflowReq, handler)
+
+	// 检查是否有错误
+	if err != nil {
+		t.Fatalf("RunStreamWorkflow encountered an error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if stepCount == 0 {
+		t.Errorf("Expected to receive at least one streaming response, but got none")
+	}
+
+	if finalResponse.WorkflowRunID == "" {
+		t.Errorf("Expected non-empty WorkflowRunID, got empty")
+	}
+	if finalResponse.TaskID == "" {
+		t.Errorf("Expected non-empty TaskID, got empty")
+	}
+
+	if !hasSucceeded {
+		t.Errorf("Expected workflow status to be 'succeeded', but got: %v", finalResponse.Data.Status)
+	}
+
+	if len(finalResponse.Data.Outputs) == 0 {
+		t.Errorf("Expected outputs in the final response, but got none")
+	}
+
+	// 检查时间和步骤等其他字段
+	if finalResponse.Data.ElapsedTime <= 0 {
+		t.Errorf("Expected positive ElapsedTime, but got: %v", finalResponse.Data.ElapsedTime)
+	}
+
+	t.Logf("Final streaming workflow response: %+v", finalResponse)
 }
