@@ -10,7 +10,7 @@ import (
 
 	"sync"
 
-	"github.com/langgenius/dify-sdk-go"
+	"github.com/KevinZhao/dify-sdk-go"
 )
 
 var (
