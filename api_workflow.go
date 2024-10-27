@@ -65,8 +65,6 @@ func (api *API) RunWorkflow(ctx context.Context, request WorkflowRequest) (*Work
 		return nil, fmt.Errorf("failed to create base request: %w", err)
 	}
 
-	fmt.Print(req)
-
 	resp, err := api.c.sendRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
@@ -87,14 +85,11 @@ func (api *API) RunWorkflow(ctx context.Context, request WorkflowRequest) (*Work
 
 // RunStreamWorkflow
 func (api *API) RunStreamWorkflow(ctx context.Context, request WorkflowRequest, handler func(StreamingResponse)) error {
-	// 直接传递 request 对象，而不是序列化后的字节流
+
 	req, err := api.createBaseRequest(ctx, http.MethodPost, "/v1/workflows/run", request)
 	if err != nil {
 		return err
 	}
-
-	// 记录请求信息
-	fmt.Printf("Request: %v\n", req)
 
 	resp, err := api.c.sendRequest(req)
 	if err != nil {
