@@ -215,13 +215,10 @@ func TestRunWorkflowStreaming(t *testing.T) {
 
 	workflowReq := dify.WorkflowRequest{
 		Inputs: map[string]interface{}{
-			"query": "描述这张图片",
-		},
-		Files: []dify.FileInput{
-			{
-				Type:           "image",
-				TransferMethod: "remote_url",
-				URL:            "https://assets.cnzlerp.com/test/aoolia/1-1.jpg",
+			"image_url_new": map[string]string{
+				"type":            "image",
+				"transfer_method": "remote_url",
+				"url":             "https://localhost/1-1.jpg",
 			},
 		},
 		ResponseMode: "streaming",

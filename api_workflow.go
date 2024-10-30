@@ -119,8 +119,6 @@ func (api *API) RunWorkflow(ctx context.Context, request WorkflowRequest) (*Work
 		return nil, fmt.Errorf("failed to create base request: %w", err)
 	}
 
-	fmt.Print(req)
-
 	resp, err := api.c.sendRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
