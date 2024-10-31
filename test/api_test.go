@@ -6,8 +6,11 @@ import (
 	"log"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/langgenius/dify-sdk-go"
+	"sync"
+
+	"github.com/KevinZhao/dify-sdk-go"
 )
 
 var (
@@ -155,4 +158,166 @@ func TestParameters(t *testing.T) {
 	j, _ := json.Marshal(res)
 
 	log.Println(string(j))
+}
+
+func TestRunWorkflow(t *testing.T) {
+	client := dify.NewClient(host, apiSecretKey)
+	//client := dify.NewClient("https://dify.zhaokm.org", "app-")
+
+	// 测试带图片的工作流请求
+	workflowReq := dify.WorkflowRequest{
+		Inputs: map[string]interface{}{
+			"image_url_new": map[string]string{
+				"type":            "image",
+				"transfer_method": "remote_url",
+				"url":             "https://localhost/1-1.jpg",
+			},
+		},
+		ResponseMode: "blocking",
+		User:         "Zhaokm@AWS",
+	}
+
+	resp, err := client.API().RunWorkflow(context.Background(), workflowReq)
+
+	if err != nil {
+		t.Fatalf("RunWorkflow encountered an error: %v", err)
+	}
+
+	// 基本字段验证
+	if resp.WorkflowRunID == "" {
+		t.Errorf("Expected non-empty WorkflowRunID, got empty")
+	}
+	if resp.TaskID == "" {
+		t.Errorf("Expected non-empty TaskID, got empty")
+	}
+
+	// 验证工作流执行状态
+	if resp.Data.Status != "succeeded" {
+		t.Errorf("Expected workflow status 'succeeded', got: %v", resp.Data.Status)
+	}
+
+	// 验证输出和元数据
+	if len(resp.Data.Outputs) == 0 {
+		t.Errorf("Expected outputs, but got none")
+	}
+	if resp.Data.ElapsedTime <= 0 {
+		t.Errorf("Expected positive ElapsedTime, but got: %v", resp.Data.ElapsedTime)
+	}
+	if resp.Data.TotalSteps <= 0 {
+		t.Errorf("Expected positive TotalSteps, but got: %v", resp.Data.TotalSteps)
+	}
+
+	t.Logf("Received workflow response: %+v", resp)
+}
+
+func TestRunWorkflowStreaming(t *testing.T) {
+	client := dify.NewClient(host, apiSecretKey)
+
+	workflowReq := dify.WorkflowRequest{
+		Inputs: map[string]interface{}{
+			"image_url_new": map[string]string{
+				"type":            "image",
+				"transfer_method": "remote_url",
+				"url":             "https://localhost/1-1.jpg",
+			},
+		},
+		ResponseMode: "streaming",
+		User:         "Zhaokm@AWS",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var (
+		mu               sync.Mutex
+		workflowStarted  bool
+		nodeStarted      bool
+		nodeFinished     bool
+		workflowFinished bool
+		ttsReceived      bool
+	)
+
+	// 创建一个实现 EventHandler 接口的处理器
+	handler := &testEventHandler{
+		t:  t,
+		mu: &mu,
+		onStreamingResponse: func(resp dify.StreamingResponse) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			switch resp.Event {
+			case dify.EventWorkflowStarted:
+				workflowStarted = true
+			case dify.EventNodeStarted:
+				nodeStarted = true
+			case dify.EventNodeFinished:
+				nodeFinished = true
+				if resp.Data.ExecutionMetadata.TotalTokens > 0 {
+					t.Logf("Node used %d tokens", resp.Data.ExecutionMetadata.TotalTokens)
+				}
+			case dify.EventWorkflowFinished:
+				workflowFinished = true
+				if resp.Data.Status != "succeeded" {
+					t.Errorf("Expected workflow status 'succeeded', got: %v", resp.Data.Status)
+				}
+			}
+		},
+		onTTSMessage: func(msg dify.TTSMessage) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			ttsReceived = true
+			if msg.Audio == "" {
+				t.Error("Expected non-empty audio data in TTS message")
+			}
+		},
+	}
+
+	err := client.API().RunStreamWorkflowWithHandler(ctx, workflowReq, handler)
+
+	if err != nil {
+		t.Fatalf("RunStreamWorkflow encountered an error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	// 验证是否收到所有预期的事件
+	if !workflowStarted {
+		t.Error("Expected workflow_started event, but didn't receive it")
+	}
+	if !nodeStarted {
+		t.Error("Expected node_started event, but didn't receive it")
+	}
+	if !nodeFinished {
+		t.Error("Expected node_finished event, but didn't receive it")
+	}
+	if !workflowFinished {
+		t.Error("Expected workflow_finished event, but didn't receive it")
+	}
+	if !ttsReceived {
+		t.Error("Expected TTS message, but didn't receive it")
+	}
+
+	t.Log("Streaming workflow test completed successfully")
+}
+
+// testEventHandler 实现 EventHandler 接口
+type testEventHandler struct {
+	t                   *testing.T
+	mu                  *sync.Mutex
+	onStreamingResponse func(dify.StreamingResponse)
+	onTTSMessage        func(dify.TTSMessage)
+}
+
+func (h *testEventHandler) HandleStreamingResponse(resp dify.StreamingResponse) {
+	if h.onStreamingResponse != nil {
+		h.onStreamingResponse(resp)
+	}
+}
+
+func (h *testEventHandler) HandleTTSMessage(msg dify.TTSMessage) {
+	if h.onTTSMessage != nil {
+		h.onTTSMessage(msg)
+	}
 }
