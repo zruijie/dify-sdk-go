@@ -5,8 +5,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -57,15 +57,18 @@ func (api *API) chatMessagesStreamHandle(ctx context.Context, resp *http.Respons
 		default:
 			line, err := reader.ReadBytes('\n')
 			if err != nil {
+				if err == io.EOF {
+					return
+				}
 				streamChannel <- ChatMessageStreamChannelResponse{
 					Err: fmt.Errorf("error reading line: %w", err),
 				}
 				return
 			}
 
-			// if !bytes.HasPrefix(line, []byte("data:")) {
-			// 	continue
-			// }
+			if !bytes.HasPrefix(line, []byte("data:")) {
+				continue
+			}
 			line = bytes.TrimPrefix(line, []byte("data:"))
 
 			var resp ChatMessageStreamChannelResponse
@@ -73,13 +76,6 @@ func (api *API) chatMessagesStreamHandle(ctx context.Context, resp *http.Respons
 				streamChannel <- ChatMessageStreamChannelResponse{
 					Err: fmt.Errorf("error unmarshalling event: %w", err),
 				}
-				return
-			} else if resp.Event == "error" {
-				streamChannel <- ChatMessageStreamChannelResponse{
-					Err: errors.New("error streaming event: " + string(line)),
-				}
-				return
-			} else if resp.Answer == "" {
 				return
 			}
 			streamChannel <- resp

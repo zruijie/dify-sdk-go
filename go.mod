@@ -1,3 +1,3 @@
-module github.com/zruijie/dify-sdk-go
+module dify-sdk-go
 
-go 1.23
+go 1.23.1

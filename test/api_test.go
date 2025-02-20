@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"log"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"sync"
-
-	"github.com/KevinZhao/dify-sdk-go"
+	"dify-sdk-go"
 )
 
 var (
@@ -20,8 +19,8 @@ var (
 
 func TestApi3(t *testing.T) {
 	var c = &dify.ClientConfig{
-		Host:         host,
-		ApiSecretKey: apiSecretKey,
+		Host:             host,
+		DefaultAPISecret: apiSecretKey,
 	}
 	var client = dify.NewClientWithConfig(c)
 
@@ -32,7 +31,7 @@ func TestApi3(t *testing.T) {
 		err error
 	)
 
-	ch, err = client.Api().ChatMessagesStream(ctx, &dify.ChatMessageRequest{
+	ch, err = client.API().ChatMessagesStream(ctx, &dify.ChatMessageRequest{
 		Query: "你是谁?",
 		User:  "这里换成你创建的",
 	})
@@ -78,7 +77,7 @@ func TestMessages(t *testing.T) {
 	var client = dify.NewClient(host, apiSecretKey)
 
 	var msg *dify.MessagesResponse
-	if msg, err = client.Api().Messages(ctx, messageReq); err != nil {
+	if msg, err = client.API().Messages(ctx, messageReq); err != nil {
 		t.Fatal(err.Error())
 		return
 	}
@@ -94,7 +93,7 @@ func TestMessagesFeedbacks(t *testing.T) {
 	var id = "72d3dc0f-a6d5-4b5e-8510-bec0611a6048"
 
 	var res *dify.MessagesFeedbacksResponse
-	if res, err = client.Api().MessagesFeedbacks(ctx, &dify.MessagesFeedbacksRequest{
+	if res, err = client.API().MessagesFeedbacks(ctx, &dify.MessagesFeedbacksRequest{
 		MessageID: id,
 		Rating:    dify.FeedbackLike,
 		User:      "jiuquan AI",
@@ -113,7 +112,7 @@ func TestConversations(t *testing.T) {
 	ctx := context.Background()
 
 	var res *dify.ConversationsResponse
-	if res, err = client.Api().Conversations(ctx, &dify.ConversationsRequest{
+	if res, err = client.API().Conversations(ctx, &dify.ConversationsRequest{
 		User: "jiuquan AI",
 	}); err != nil {
 		t.Fatal(err.Error())
@@ -130,7 +129,7 @@ func TestConversationsRename(t *testing.T) {
 	ctx := context.Background()
 
 	var res *dify.ConversationsRenamingResponse
-	if res, err = client.Api().ConversationsRenaming(ctx, &dify.ConversationsRenamingRequest{
+	if res, err = client.API().ConversationsRenaming(ctx, &dify.ConversationsRenamingRequest{
 		ConversationID: "ec373942-2d17-4f11-89bb-f9bbf863ebcc",
 		Name:           "rename!!!",
 		User:           "jiuquan AI",
@@ -149,7 +148,7 @@ func TestParameters(t *testing.T) {
 	ctx := context.Background()
 
 	var res *dify.ParametersResponse
-	if res, err = client.Api().Parameters(ctx, &dify.ParametersRequest{
+	if res, err = client.API().Parameters(ctx, &dify.ParametersRequest{
 		User: "jiuquan AI",
 	}); err != nil {
 		t.Fatal(err.Error())
@@ -162,7 +161,7 @@ func TestParameters(t *testing.T) {
 
 func TestRunWorkflow(t *testing.T) {
 	client := dify.NewClient(host, apiSecretKey)
-	//client := dify.NewClient("https://dify.zhaokm.org", "app-")
+	// client := dify.NewClient("https://dify.zhaokm.org", "app-")
 
 	// 测试带图片的工作流请求
 	workflowReq := dify.WorkflowRequest{

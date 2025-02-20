@@ -23,13 +23,9 @@ func NewClientWithConfig(c *ClientConfig) *Client {
 		httpClient.Transport = c.Transport
 	}
 
-	secret := c.DefaultAPISecret
-	if secret == "" {
-		secret = c.ApiSecretKey
-	}
 	return &Client{
 		host:             c.Host,
-		defaultAPISecret: secret,
+		defaultAPISecret: c.DefaultAPISecret,
 		httpClient:       httpClient,
 	}
 }
@@ -79,11 +75,6 @@ func (c *Client) getHost() string {
 
 func (c *Client) getAPISecret() string {
 	return c.defaultAPISecret
-}
-
-// Api deprecated, use API() instead
-func (c *Client) Api() *API {
-	return c.API()
 }
 
 func (c *Client) API() *API {
