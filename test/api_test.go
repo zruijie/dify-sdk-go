@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zruijie/dify-sdk-go/pkg/dify"
+	"github.com/zruijie/dify-sdk-go"
 )
 
 var (
