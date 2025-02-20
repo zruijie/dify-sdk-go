@@ -63,10 +63,14 @@ func (api *API) chatMessagesStreamHandle(ctx context.Context, resp *http.Respons
 				return
 			}
 
+			// if !bytes.HasPrefix(line, []byte("data:")) {
+			// 	continue
+			// }
+			// line = bytes.TrimPrefix(line, []byte("data:"))
+
 			if !bytes.HasPrefix(line, []byte("data:")) {
-				continue
+				line = bytes.TrimPrefix(line, []byte("data:"))
 			}
-			line = bytes.TrimPrefix(line, []byte("data:"))
 
 			var resp ChatMessageStreamChannelResponse
 			if err = json.Unmarshal(line, &resp); err != nil {
